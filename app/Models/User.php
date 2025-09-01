@@ -1,32 +1,30 @@
 <?php
+// app/Models/User.php
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory;
 
     /**
      * The attributes that are mass assignable.
      *
-     * @var list<string>
+     * @var array<int, string>
      */
     protected $fillable = [
-        'name',
-        'email',
+        'username', // nameからusernameに変更
         'password',
     ];
 
     /**
      * The attributes that should be hidden for serialization.
      *
-     * @var list<string>
+     * @var array<int, string>
      */
     protected $hidden = [
         'password',
@@ -34,15 +32,36 @@ class User extends Authenticatable
     ];
 
     /**
-     * Get the attributes that should be cast.
+     * The attributes that should be cast.
      *
-     * @return array<string, string>
+     * @var array<string, string>
      */
-    protected function casts(): array
+    protected $casts = [
+        'password' => 'hashed', // Laravel 10+の自動ハッシュ化
+    ];
+
+    /**
+     * ユーザーが作成したテーマとのリレーション
+     */
+    public function themes(): HasMany
     {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
+        return $this->hasMany(Theme::class, 'creator_id');
+    }
+
+    /**
+     * ユーザーの投票とのリレーション
+     */
+    public function votes(): HasMany
+    {
+        return $this->hasMany(Vote::class);
+    }
+
+    /**
+     * 認証に使用するユーザー名フィールドを指定
+     * デフォルトの'email'から'username'に変更
+     */
+    public function getAuthIdentifierName()
+    {
+        return 'username';
     }
 }
