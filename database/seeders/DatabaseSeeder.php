@@ -43,7 +43,7 @@ class DatabaseSeeder extends Seeder
         // サンプルテーマの作成
         $theme1 = Theme::create([
             'title' => '好きな教科',
-            'description' => '学校で好きだった教科について教えてください',
+            'description' => '好きな教科',
             'creator_id' => $user1->id,
             'category_id' => Category::where('name', '教育')->first()->id,
         ]);
@@ -54,37 +54,6 @@ class DatabaseSeeder extends Seeder
             Option::create([
                 'theme_id' => $theme1->id,
                 'name' => $subject,
-            ]);
-        }
-
-        // 追加のサンプルテーマ
-        $theme2 = Theme::create([
-            'title' => '好きなプログラミング言語',
-            'description' => '現在使用している、または学習したいプログラミング言語は？',
-            'creator_id' => $user2->id,
-            'category_id' => Category::where('name', '技術')->first()->id,
-        ]);
-
-        $languages = ['PHP', 'JavaScript', 'Python', 'Java', 'C++', 'Go', 'Rust', 'TypeScript'];
-        foreach ($languages as $language) {
-            Option::create([
-                'theme_id' => $theme2->id,
-                'name' => $language,
-            ]);
-        }
-
-        $theme3 = Theme::create([
-            'title' => '好きな季節',
-            'description' => 'あなたが一番好きな季節はどれですか？',
-            'creator_id' => $user1->id,
-            'category_id' => Category::where('name', 'ライフスタイル')->first()->id,
-        ]);
-
-        $seasons = ['春', '夏', '秋', '冬'];
-        foreach ($seasons as $season) {
-            Option::create([
-                'theme_id' => $theme3->id,
-                'name' => $season,
             ]);
         }
     }

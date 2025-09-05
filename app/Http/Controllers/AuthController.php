@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -29,18 +30,45 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        // usernameとpasswordで認証
-        if (Auth::attempt([
-            'username' => $request->username,
-            'password' => $request->password
-        ])) {
-            $request->session()->regenerate();
-            return redirect()->intended('/');
+        // ユーザー確認
+        $user = User::where('username', $request->username)->first();
+        if (!$user) {
+            throw ValidationException::withMessages([
+                'username' => ['ユーザーが見つかりません。'],
+            ]);
         }
 
-        throw ValidationException::withMessages([
-            'username' => ['ユーザー名またはパスワードが間違っています。'],
+        // パスワードチェック
+        if (!Hash::check($request->password, $user->password)) {
+            throw ValidationException::withMessages([
+                'username' => ['パスワードが一致しません。'],
+            ]);
+        }
+
+        Log::info('ログイン前状態', [
+            'session_id' => session()->getId(),
+            'authenticated' => Auth::check(),
         ]);
+
+        // 手動認証（セッション再生成なし）
+        Auth::login($user, true); // remember = true
+
+        Log::info('ログイン直後状態', [
+            'session_id' => session()->getId(),
+            'authenticated' => Auth::check(),
+            'user_id' => Auth::id(),
+        ]);
+
+        // セッション再生成をコメントアウト
+        // $request->session()->regenerate();
+
+        Log::info('リダイレクト前最終状態', [
+            'session_id' => session()->getId(),
+            'authenticated' => Auth::check(),
+            'user_id' => Auth::id(),
+        ]);
+
+        return redirect()->route('themes.index')->with('success', 'ログインしました。');
     }
 
     /**
@@ -67,20 +95,15 @@ class AuthController extends Controller
         ]);
 
         // ユーザー作成
-        User::create([
+        $user = User::create([
             'username' => $request->username,
             'password' => Hash::make($request->password),
         ]);
 
-        // 自動ログイン
-        if (Auth::attempt([
-            'username' => $request->username,
-            'password' => $request->password
-        ])) {
-            $request->session()->regenerate();
-        }
+        // 手動ログイン（セッション再生成なし）
+        Auth::login($user, true);
 
-        return redirect('/')->with('success', 'アカウントが作成されました。');
+        return redirect()->route('themes.index')->with('success', 'アカウントが作成されました。');
     }
 
     /**
@@ -93,6 +116,6 @@ class AuthController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
         
-        return redirect('/login')->with('success', 'ログアウトしました。');
+        return redirect()->route('login')->with('success', 'ログアウトしました。');
     }
 }

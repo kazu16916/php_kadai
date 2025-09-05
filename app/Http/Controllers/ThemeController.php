@@ -9,79 +9,91 @@ use App\Models\Option;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class ThemeController extends Controller
 {
     public function index()
     {
-        // 最初はシンプルに、リレーションなしで取得
         $themes = Theme::orderBy('created_at', 'desc')->get();
         return view('themes.index', compact('themes'));
     }
 
     public function create()
     {
-        // Authファサードを使用
-        if (!Auth::check()) {
-            return redirect()->route('login');
-        }
-
-        // カテゴリ機能を一時的に無効化
-        $categories = collect([]);
+        // ★ ここを修正：カテゴリーをDBから取得して渡す
+        $categories = Category::orderBy('id')->get(); // or ->orderBy('name')
         return view('themes.create', compact('categories'));
     }
 
     public function store(Request $request)
     {
-        // 認証チェック（Authファサード使用）
-        if (!Auth::check()) {
-            return redirect()->route('login');
-        }
-
-        // バリデーションを最小限に
-        $request->validate([
-            'title' => 'required|string',
-            'options' => 'required|array|min:2',
+        // ★ category_id をバリデーション対象に追加（任意選択）
+        $validated = $request->validate([
+            'title'       => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'category_id' => ['nullable', 'integer', 'exists:categories,id'],
+            'options'     => ['required', 'array', 'min:2'],
+            'options.*'   => ['nullable', 'string', 'max:255'],
         ]);
 
         try {
-            // デバッグ用の出力
-            Log::info('User ID: ' . Auth::id());
-            Log::info('Request data: ', $request->all());
+            // ★ 常に数値の users.id を取得
+            $authUser = Auth::user();
+            $userId = $authUser?->id;
+            $loginIdentifier = Auth::id(); // あなたの環境では "psyduck"（= username）
 
-            // ユーザーIDの取得
-            $userId = Auth::id();
-            if (!$userId) {
-                // テスト用に最初のユーザーを使用
-                $firstUser = User::first();
-                $userId = $firstUser ? $firstUser->id : 1;
-                Log::warning('認証ユーザーが見つからない。ユーザーID ' . $userId . ' を使用。');
+            if (is_null($userId) && $loginIdentifier) {
+                $userId = User::where('username', $loginIdentifier)->value('id');
+            }
+            if (is_null($userId)) {
+                return redirect()->route('login')
+                    ->with('error', 'ログイン状態を確認できませんでした。再度ログインしてください。');
             }
 
-            $theme = Theme::create([
-                'title' => $request->title,
-                'description' => $request->description ?? '',
-                'creator_id' => $userId,
-                'category_id' => null, // 一時的にnull
-            ]);
-
-            // 選択肢を保存
-            foreach ($request->options as $optionName) {
-                if (!empty(trim($optionName))) {
-                    Option::create([
-                        'theme_id' => $theme->id,
-                        'name' => trim($optionName),
-                    ]);
-                }
+            // オプション整形（空要素除去）
+            $options = [];
+            foreach (($validated['options'] ?? []) as $name) {
+                $name = trim((string)$name);
+                if ($name !== '') $options[] = $name;
             }
+            if (count($options) < 2) {
+                return back()->withInput()->with('error', '選択肢は最低2つ必要です。');
+            }
+
+            // ★ category_id: 空文字のときは null に正規化
+            $categoryId = $validated['category_id'] ?? null;
+            if ($categoryId === '' || $categoryId === 0) {
+                $categoryId = null;
+            }
+
+            DB::beginTransaction();
+
+            $theme = new Theme();
+            $theme->title       = $validated['title'];
+            $theme->description = $validated['description'] ?? '';
+            $theme->creator_id  = $userId;
+            $theme->category_id = $categoryId; // ★ ここで保存
+            $theme->save();
+
+            foreach ($options as $optionName) {
+                $opt = new Option();
+                $opt->theme_id = $theme->id;
+                $opt->name     = $optionName;
+                $opt->save();
+            }
+
+            DB::commit();
 
             return redirect()->route('themes.index')
-                            ->with('success', 'テーマが作成されました。');
-                            
-        } catch (\Exception $e) {
-            Log::error('テーマ作成エラー: ' . $e->getMessage());
-            return back()->withInput()->with('error', 'エラーが発生しました: ' . $e->getMessage());
+                ->with('success', 'テーマが作成されました。');
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('テーマ作成エラー: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return back()->withInput()
+                ->with('error', 'エラーが発生しました: '.$e->getMessage());
         }
     }
 }

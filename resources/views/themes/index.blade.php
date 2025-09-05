@@ -6,9 +6,7 @@
 <div class="card">
     <h1 style="color: #4a90e2; margin-bottom: 2rem;">投票テーマ一覧</h1>
     
-    @auth
-        <a href="{{ route('themes.create') }}" class="btn btn-success">新しいテーマを作成する</a>
-    @endauth
+    <a href="{{ route('themes.create') }}" class="btn btn-success">新しいテーマを作成する</a>
 
     @if($themes->count() > 0)
         <table class="table">

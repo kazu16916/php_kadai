@@ -17,7 +17,7 @@ class User extends Authenticatable
      * @var array<int, string>
      */
     protected $fillable = [
-        'username', // nameからusernameに変更
+        'username',
         'password',
     ];
 
@@ -37,8 +37,56 @@ class User extends Authenticatable
      * @var array<string, string>
      */
     protected $casts = [
-        'password' => 'hashed', // Laravel 10+の自動ハッシュ化
+        'password' => 'hashed',
     ];
+
+    /**
+     * 認証に使用するユーザー名フィールドを指定
+     */
+    public function getAuthIdentifierName()
+    {
+        return 'username';
+    }
+
+    /**
+     * 認証識別子の値を取得
+     */
+    public function getAuthIdentifier()
+    {
+        return $this->getAttribute($this->getAuthIdentifierName());
+    }
+
+    /**
+     * 認証用パスワードを取得
+     */
+    public function getAuthPassword()
+    {
+        return $this->password;
+    }
+
+    /**
+     * Remember tokenの取得
+     */
+    public function getRememberToken()
+    {
+        return $this->remember_token;
+    }
+
+    /**
+     * Remember tokenの設定
+     */
+    public function setRememberToken($value)
+    {
+        $this->remember_token = $value;
+    }
+
+    /**
+     * Remember tokenのカラム名
+     */
+    public function getRememberTokenName()
+    {
+        return 'remember_token';
+    }
 
     /**
      * ユーザーが作成したテーマとのリレーション
@@ -54,14 +102,5 @@ class User extends Authenticatable
     public function votes(): HasMany
     {
         return $this->hasMany(Vote::class);
-    }
-
-    /**
-     * 認証に使用するユーザー名フィールドを指定
-     * デフォルトの'email'から'username'に変更
-     */
-    public function getAuthIdentifierName()
-    {
-        return 'username';
     }
 }

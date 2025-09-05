@@ -4,6 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'アンケート&投票アプリ')</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <script>
+    // CSRFトークンを定期的に更新
+    setInterval(function() {
+        fetch('/csrf-token', {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            document.querySelector('meta[name="csrf-token"]').setAttribute('content', data.token);
+        })
+        .catch(error => console.log('CSRF token refresh failed'));
+    }, 300000); // 5分ごとに更新
+    </script>
+    <!-- 既存のスタイル -->
     <style>
         * {
             margin: 0;
@@ -229,10 +247,8 @@
                 <a href="{{ route('themes.index') }}">テーマ一覧</a>
                 @auth
                     <span class="welcome-message">ようこそ、{{ auth()->user()->username }}さん</span>
-                    <form method="POST" action="{{ route('logout') }}" style="display: inline;">
-                        @csrf
-                        <button type="submit">ログアウト</button>
-                    </form>
+                    <!-- GETリンクでログアウト（CSRFエラー回避） -->
+                    <a href="{{ route('logout') }}">ログアウト</a>
                 @else
                     <a href="{{ route('login') }}">ログイン</a>
                     <a href="{{ route('register') }}">新規登録</a>

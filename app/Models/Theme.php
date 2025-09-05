@@ -24,6 +24,10 @@ class Theme extends Model
         'creator_id',
         'category_id',
     ];
+    protected $casts = [
+    'creator_id'  => 'integer',
+    'category_id' => 'integer',
+    ];
 
     public function creator(): BelongsTo
     {
